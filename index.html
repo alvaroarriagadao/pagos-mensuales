@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Mis pagos mensuales</title>
+  <link rel="stylesheet" href="styles.css" />
+  <script>
+    // Si no se encuentra logueado en localStorage ni en sessionStorage, redirige a login
+    if (!localStorage.getItem('logged') && !sessionStorage.getItem('logged')) {
+      window.location.href = 'login.html';
+    }
+  </script>
+</head>
+<body>
+  <!-- Encabezado -->
+  <header>
+    <div style="width:100%"><h1>Mis pagos mensuales</h1></div>
+    <div style="width:100%"> <button id="logout-button">Cerrar Sesión</button></div>
+   
+   
+  </header>
+
+  <!-- Filtro de Tarjeta -->
+  <div id="filter-container">
+    <label for="filter-card">Selecciona Tarjeta:</label>
+    <select id="filter-card">
+      <option value="Itaú">Itaú</option>
+      <option value="Banco de Chile">Banco de Chile</option>
+      <option value="Tenpo">Tenpo</option>
+      <option value="Banco Estado">Banco Estado</option>
+    </select>
+  </div>
+
+  <!-- Sección del formulario para agregar compras -->
+  <section id="form-section">
+    <form id="purchase-form">
+      <div class="form-group">
+        <label for="tarjeta">Tarjeta:</label>
+        <!-- Se usa un select para que la compra se asocie a una tarjeta predefinida -->
+        <select id="tarjeta" name="tarjeta" required>
+           <option value="Tenpo">Tenpo</option>
+          <option value="Itaú">Itaú</option>
+          <option value="Banco de Chile">Banco de Chile</option>
+          <option value="Banco Estado">Banco Estado</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label for="montoTotal">Monto Total (CLP):</label>
+        <input type="number" id="montoTotal" name="montoTotal" step="1" required />
+      </div>
+      <div class="form-group">
+        <label for="cuotas">Número de Cuotas:</label>
+        <input type="number" id="cuotas" name="cuotas" required min="1" />
+      </div>
+      <div class="form-group">
+        <label for="mesPrimeraCuota">Mes de Primera Cuota:</label>
+        <!-- Usamos input type="month" para seleccionar mes y año -->
+        <input type="month" id="mesPrimeraCuota" name="mesPrimeraCuota" required />
+      </div>
+      <div class="form-group">
+        <label for="detalle">Detalle:</label>
+        <input type="text" id="detalle" name="detalle" required />
+      </div>
+      <button type="submit">Agregar Compra</button>
+    </form>
+  </section>
+
+  <!-- Sección para la tabla de compras registradas -->
+  <section id="purchases-section">
+    <h2>Compras Registradas</h2>
+    <table id="purchases-table">
+      <thead>
+        <tr>
+          <th>Tarjeta</th>
+          <th>Monto Total</th>
+          <th>Cuotas</th>
+          <th>Mes Primera Cuota</th>
+          <th>Detalle</th>
+          <th>Acciones</th>
+        </tr>
+      </thead>
+      <tbody>
+        <!-- Las filas se agregarán dinámicamente -->
+      </tbody>
+    </table>
+  </section>
+
+  <!-- Sección para el resumen mensual de pagos -->
+  <section id="summary-section">
+    <h2>Resumen Mensual de Pagos</h2>
+    <div id="summary-container">
+      <!-- Se generará dinámicamente el resumen -->
+    </div>
+  </section>
+
+  <script src="script.js"></script>
+</body>
+</html>
