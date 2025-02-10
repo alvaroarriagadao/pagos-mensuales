@@ -1,9 +1,4 @@
 document.addEventListener('DOMContentLoaded', () => {
-  // Si se carga este archivo sin estar logueado, redirige
-  if (!localStorage.getItem('logged') && !sessionStorage.getItem('logged')) {
-    window.location.href = 'login.html';
-  }
-
   // Referencias a elementos del DOM
   const purchaseForm = document.getElementById('purchase-form');
   const purchasesTableBody = document.querySelector('#purchases-table tbody');
@@ -11,30 +6,24 @@ document.addEventListener('DOMContentLoaded', () => {
   const logoutButton = document.getElementById('logout-button');
   const filterCard = document.getElementById('filter-card');
 
-  // Evento para cerrar sesión (elimina de ambos storages)
+  // Cerrar sesión usando Firebase Auth
   logoutButton.addEventListener('click', () => {
-    localStorage.removeItem('logged');
-    sessionStorage.removeItem('logged');
-    window.location.href = 'login.html';
+    firebase.auth().signOut().then(() => {
+      window.location.href = 'login.html';
+    });
   });
 
-  // Recupera las compras almacenadas en LocalStorage o inicia un array vacío
-  let purchases = JSON.parse(localStorage.getItem('purchases')) || [];
-
-  // Función para guardar las compras en LocalStorage
-  function savePurchases() {
-    localStorage.setItem('purchases', JSON.stringify(purchases));
-  }
+  // Variable para almacenar las compras obtenidas de Firestore
+  let purchases = [];
 
   // Función para formatear montos en CLP
   function formatCurrency(amount) {
     return new Intl.NumberFormat('es-CL', { style: 'currency', currency: 'CLP' }).format(amount);
   }
 
-  // Función para actualizar la tabla de compras (filtrando por tarjeta)
+  // Actualiza la tabla de compras filtrando por la tarjeta seleccionada
   function updatePurchasesTable() {
     const selectedCard = filterCard.value;
-    // Filtrar las compras por la tarjeta seleccionada
     const filteredPurchases = purchases.filter(p => p.tarjeta === selectedCard);
     purchasesTableBody.innerHTML = '';
 
@@ -51,35 +40,35 @@ document.addEventListener('DOMContentLoaded', () => {
       purchasesTableBody.appendChild(tr);
     });
 
-    // Agregar evento para los botones de eliminar
+    // Agregar eventos a los botones de eliminar
     document.querySelectorAll('.delete-btn').forEach(button => {
       button.addEventListener('click', () => {
-        const id = parseInt(button.getAttribute('data-id'));
-        purchases = purchases.filter(p => p.id !== id);
-        savePurchases();
-        updatePurchasesTable();
-        updateSummary();
+        const id = button.getAttribute('data-id');
+        // Eliminar el documento de Firestore
+        db.collection('purchases').doc(id).delete()
+          .then(() => {
+            console.log('Compra eliminada correctamente');
+          })
+          .catch(error => {
+            console.error("Error al eliminar la compra:", error);
+          });
       });
     });
   }
 
-  // Función para actualizar el resumen mensual de pagos (filtrando por tarjeta)
+  // Actualiza el resumen mensual de pagos filtrado por tarjeta
   function updateSummary() {
     const selectedCard = filterCard.value;
-    // Filtrar las compras para la tarjeta seleccionada
     const filteredPurchases = purchases.filter(p => p.tarjeta === selectedCard);
-
-    // Calcular el total acumulado a pagar para esa tarjeta
     const totalCard = filteredPurchases.reduce((acc, purchase) => acc + purchase.montoTotal, 0);
 
-    // Objeto para acumular los pagos mensuales
+    // Acumular pagos mensuales
     const summary = {};
     filteredPurchases.forEach(purchase => {
       const { montoTotal, cuotas, mesPrimeraCuota } = purchase;
       const pagoMensual = montoTotal / cuotas;
       let [year, month] = mesPrimeraCuota.split('-').map(Number);
       for (let i = 0; i < cuotas; i++) {
-        // Calcular la fecha de cada cuota
         let currentDate = new Date(year, month - 1 + i, 1);
         let currentYear = currentDate.getFullYear();
         let currentMonth = (currentDate.getMonth() + 1).toString().padStart(2, '0');
@@ -91,18 +80,13 @@ document.addEventListener('DOMContentLoaded', () => {
       }
     });
 
-    // Ordenar las claves (meses) de forma cronológica
     const sortedMonths = Object.keys(summary).sort();
-
-    // Generar la tabla del resumen mensual
     let tableHTML = '<table>';
-    // Encabezado con los meses
     tableHTML += '<thead><tr>';
     sortedMonths.forEach(month => {
       tableHTML += `<th>${month}</th>`;
     });
     tableHTML += '</tr></thead>';
-    // Fila con los totales de pago para cada mes
     tableHTML += '<tbody><tr>';
     sortedMonths.forEach(month => {
       tableHTML += `<td>${formatCurrency(summary[month])}</td>`;
@@ -110,12 +94,12 @@ document.addEventListener('DOMContentLoaded', () => {
     tableHTML += '</tr></tbody>';
     tableHTML += '</table>';
 
-    // Calcular la próxima fecha de facturación (día 24 de cada mes)
+    // Calcular la próxima fecha de facturación (día 24)
     let today = new Date();
     let billingYear = today.getFullYear();
-    let billingMonth = today.getMonth() + 1; // meses en base 1
+    let billingMonth = today.getMonth() + 1;
     if (today.getDate() >= 24) {
-      billingMonth += 1;
+      billingMonth++;
       if (billingMonth > 12) {
         billingMonth = 1;
         billingYear++;
@@ -124,70 +108,74 @@ document.addEventListener('DOMContentLoaded', () => {
     const nextBillingKey = `${billingYear}-${billingMonth.toString().padStart(2, '0')}`;
     const nextBillingTotal = summary[nextBillingKey] || 0;
 
-    // Generar el bloque de resumen para la próxima fecha de facturación
     let billingSummaryHTML = `
       <div id="billing-summary">
         <h4>Próxima fecha de facturación: 24 de ${nextBillingKey}</h4>
         <h3>Total a pagar: ${formatCurrency(nextBillingTotal)}</h3>
       </div>
     `;
-
-    // Mostrar total acumulado para la tarjeta seleccionada
     let totalHTML = `<div id="total-card"><h4>Total acumulado para ${selectedCard}: ${formatCurrency(totalCard)}</h4></div>`;
-
     summaryContainer.innerHTML = totalHTML + billingSummaryHTML + tableHTML;
   }
 
-  // Evento para que al cambiar el filtro se actualicen las tablas
-  filterCard.addEventListener('change', () => {
+  // Función para actualizar la interfaz (tabla y resumen)
+  function updateUI() {
     updatePurchasesTable();
     updateSummary();
-  });
-
-  // Función para validar el formulario
-  function validateForm(data) {
-    if (!data.tarjeta.trim() || !data.detalle.trim()) {
-      alert('Por favor, complete todos los campos de texto.');
-      return false;
-    }
-    if (data.montoTotal <= 0) {
-      alert('El monto total debe ser mayor a 0.');
-      return false;
-    }
-    if (data.cuotas < 1 || !Number.isInteger(data.cuotas)) {
-      alert('El número de cuotas debe ser un entero mayor o igual a 1.');
-      return false;
-    }
-    if (!data.mesPrimeraCuota) {
-      alert('Debe seleccionar el mes de la primera cuota.');
-      return false;
-    }
-    return true;
   }
 
-  // Manejo del evento submit del formulario para agregar compra
+  // Escucha en tiempo real los cambios en la colección "purchases" del usuario autenticado
+  firebase.auth().onAuthStateChanged((user) => {
+    if (user) {
+      db.collection('purchases')
+        .where('userId', '==', user.uid)
+        .onSnapshot(snapshot => {
+          purchases = []; // Reinicia el array
+          snapshot.forEach(doc => {
+            let data = doc.data();
+            data.id = doc.id; // Guardar el ID del documento
+            purchases.push(data);
+          });
+          updateUI();
+        });
+    }
+  });
+
+  // Manejar el envío del formulario para agregar una compra a Firestore
   purchaseForm.addEventListener('submit', (e) => {
     e.preventDefault();
-
+    const currentUser = firebase.auth().currentUser;
+    if (!currentUser) {
+      alert("Usuario no autenticado");
+      return;
+    }
     const data = {
-      id: Date.now(), // identificador único
       tarjeta: document.getElementById('tarjeta').value,
       montoTotal: parseFloat(document.getElementById('montoTotal').value),
       cuotas: parseInt(document.getElementById('cuotas').value),
       mesPrimeraCuota: document.getElementById('mesPrimeraCuota').value,
-      detalle: document.getElementById('detalle').value
+      detalle: document.getElementById('detalle').value,
+      userId: currentUser.uid
     };
 
-    if (!validateForm(data)) return;
+    // Validar campos
+    if (!data.tarjeta.trim() || !data.detalle.trim() || data.montoTotal <= 0 || data.cuotas < 1 || !data.mesPrimeraCuota) {
+      alert('Por favor, complete todos los campos correctamente.');
+      return;
+    }
 
-    purchases.push(data);
-    savePurchases();
-    updatePurchasesTable();
-    updateSummary();
-    purchaseForm.reset();
+    db.collection('purchases').add(data)
+      .then(() => {
+        console.log("Compra agregada correctamente");
+        purchaseForm.reset();
+      })
+      .catch(error => {
+        console.error("Error al agregar la compra:", error);
+      });
   });
 
-  // Inicializa la interfaz
-  updatePurchasesTable();
-  updateSummary();
+  // Actualiza la interfaz cuando se cambia el filtro de tarjeta
+  filterCard.addEventListener('change', () => {
+    updateUI();
+  });
 });

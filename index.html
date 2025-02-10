@@ -5,20 +5,42 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Mis pagos mensuales</title>
   <link rel="stylesheet" href="styles.css" />
+  <!-- Incluir Firebase SDKs para App, Auth y Firestore -->
+  <script src="https://www.gstatic.com/firebasejs/9.17.1/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.17.1/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.17.1/firebase-firestore-compat.js"></script>
   <script>
-    // Si no se encuentra logueado en localStorage ni en sessionStorage, redirige a login
-    if (!localStorage.getItem('logged') && !sessionStorage.getItem('logged')) {
-      window.location.href = 'login.html';
-    }
+    // REEMPLAZA ESTOS VALORES CON TU CONFIGURACIÓN DE FIREBASE
+    var firebaseConfig = {
+      apiKey: "AIzaSyCcHPzYuLv_BjFgp-6pE7VnItDl_LNnmbk",
+      authDomain: "mispagoscloud.firebaseapp.com",
+      projectId: "mispagoscloud",
+      storageBucket: "mispagoscloud.firebasestorage.app",
+      messagingSenderId: "118418899592",
+      appId: "1:118418899592:web:4c1f9737dfa24159b5553d",
+      measurementId: "G-Q6F0NKSZHP"
+    };
+    // Inicializar Firebase y Firestore
+    firebase.initializeApp(firebaseConfig);
+    const db = firebase.firestore();
+
+    // Verifica que el usuario esté autenticado; si no, redirige al login
+    firebase.auth().onAuthStateChanged((user) => {
+      if (!user) {
+        window.location.href = 'login.html';
+      }
+    });
   </script>
 </head>
 <body>
   <!-- Encabezado -->
   <header>
-    <div style="width:100%"><h1>Mis pagos mensuales</h1></div>
-    <div style="width:100%"> <button id="logout-button">Cerrar Sesión</button></div>
-   
-   
+    <div style="width:100%">
+      <h1>Mis pagos mensuales</h1>
+    </div>
+    <div style="width:100%">
+      <button id="logout-button">Cerrar Sesión</button>
+    </div>
   </header>
 
   <!-- Filtro de Tarjeta -->
@@ -37,9 +59,9 @@
     <form id="purchase-form">
       <div class="form-group">
         <label for="tarjeta">Tarjeta:</label>
-        <!-- Se usa un select para que la compra se asocie a una tarjeta predefinida -->
+        <!-- Se usa un select para asociar la compra a una tarjeta -->
         <select id="tarjeta" name="tarjeta" required>
-           <option value="Tenpo">Tenpo</option>
+          <option value="Tenpo">Tenpo</option>
           <option value="Itaú">Itaú</option>
           <option value="Banco de Chile">Banco de Chile</option>
           <option value="Banco Estado">Banco Estado</option>
@@ -55,7 +77,6 @@
       </div>
       <div class="form-group">
         <label for="mesPrimeraCuota">Mes de Primera Cuota:</label>
-        <!-- Usamos input type="month" para seleccionar mes y año -->
         <input type="month" id="mesPrimeraCuota" name="mesPrimeraCuota" required />
       </div>
       <div class="form-group">
@@ -81,7 +102,7 @@
         </tr>
       </thead>
       <tbody>
-        <!-- Las filas se agregarán dinámicamente -->
+        <!-- Se llenará dinámicamente -->
       </tbody>
     </table>
   </section>
